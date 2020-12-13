@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useContext, useEffect } from "react";
+import GlobalContext from "../store/GlobalContext";
 import PropTypes from "prop-types";
-import clsx from "clsx";
 import { lighten, makeStyles } from "@material-ui/core/styles";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
@@ -14,27 +14,7 @@ import Toolbar from "@material-ui/core/Toolbar";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 
-import SelectBar from "../components/SelectBar";
-
-function createData(name, position, category, priceAverage, occurrences) {
-  return { name, position, category, priceAverage, occurrences };
-}
-
-const rows = [
-  createData("Cupcake", 305, 3.7, 67, 4.3),
-  createData("Donut", 452, 25.0, 51, 4.9),
-  createData("Eclair", 262, 16.0, 24, 6.0),
-  createData("Frozen yoghurt", 159, 6.0, 24, 4.0),
-  createData("Gingerbread", 356, 16.0, 49, 3.9),
-  createData("Honeycomb", 408, 3.2, 87, 6.5),
-  createData("Ice cream sandwich", 237, 9.0, 37, 4.3),
-  createData("Jelly Bean", 375, 0.0, 94, 0.0),
-  createData("KitKat", 518, 26.0, 65, 7.0),
-  createData("Lollipop", 392, 0.2, 98, 0.0),
-  createData("Marshmallow", 318, 0, 81, 2.0),
-  createData("Nougat", 360, 19.0, 9, 37.0),
-  createData("Oreo", 437, 18.0, 63, 4.0),
-];
+import DateSelect from "../components/DateSelect";
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -70,18 +50,30 @@ const headCells = [
     label: "Name",
   },
   { id: "position", numeric: true, disablePadding: false, label: "Position" },
-  { id: "category", numeric: true, disablePadding: false, label: "Category" },
+  { id: "domain_id", numeric: true, disablePadding: false, label: "Domain ID" },
   {
-    id: "priceAverage",
+    id: "category_name",
+    numeric: true,
+    disablePadding: false,
+    label: "Category Name",
+  },
+  {
+    id: "price",
     numeric: true,
     disablePadding: false,
     label: "Price Average (R$)",
   },
   {
-    id: "occurrences",
+    id: "available",
     numeric: true,
     disablePadding: false,
-    label: "Occurrences",
+    label: "Available",
+  },
+  {
+    id: "sold",
+    numeric: true,
+    disablePadding: false,
+    label: "Sold",
   },
 ];
 
@@ -164,7 +156,7 @@ const EnhancedTableToolbar = () => {
       >
         Items
       </Typography>
-      <SelectBar />
+      <DateSelect />
     </Toolbar>
   );
 };
@@ -196,13 +188,19 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 export default function EnhancedTable() {
+  const { items, handleItemsDateChange } = useContext(GlobalContext);
   const classes = useStyles();
   const [order, setOrder] = React.useState("asc");
-  const [orderBy, setOrderBy] = React.useState("calories");
+  const [orderBy, setOrderBy] = React.useState("position");
   const [selected, setSelected] = React.useState([]);
   const [page, setPage] = React.useState(0);
-  const [dense, setDense] = React.useState(false);
+  const [dense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  useEffect(() => {
+    const date = new Date(Date.now());
+    handleItemsDateChange(date);
+  }, []);
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -212,7 +210,7 @@ export default function EnhancedTable() {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = rows.map((n) => n.name);
+      const newSelecteds = items.map((n) => n.name);
       setSelected(newSelecteds);
       return;
     }
@@ -228,10 +226,8 @@ export default function EnhancedTable() {
     setPage(0);
   };
 
-  const isSelected = (name) => selected.indexOf(name) !== -1;
-
   const emptyRows =
-    rowsPerPage - Math.min(rowsPerPage, rows.length - page * rowsPerPage);
+    rowsPerPage - Math.min(rowsPerPage, items.length - page * rowsPerPage);
 
   return (
     <div className={classes.root}>
@@ -251,10 +247,10 @@ export default function EnhancedTable() {
               orderBy={orderBy}
               onSelectAllClick={handleSelectAllClick}
               onRequestSort={handleRequestSort}
-              rowCount={rows.length}
+              rowCount={items.length}
             />
             <TableBody>
-              {stableSort(rows, getComparator(order, orderBy))
+              {stableSort(items, getComparator(order, orderBy))
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row, index) => {
                   const labelId = `enhanced-table-checkbox-${index}`;
@@ -270,9 +266,11 @@ export default function EnhancedTable() {
                         {row.name}
                       </TableCell>
                       <TableCell align="right">{row.position}</TableCell>
-                      <TableCell align="right">{row.category}</TableCell>
-                      <TableCell align="right">{row.priceAverage}</TableCell>
-                      <TableCell align="right">{row.occurrences}</TableCell>
+                      <TableCell align="right">{row.domain_id}</TableCell>
+                      <TableCell align="right">{row.category_name}</TableCell>
+                      <TableCell align="right">{row.price}</TableCell>
+                      <TableCell align="right">{row.available}</TableCell>
+                      <TableCell align="right">{row.sold}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -285,9 +283,9 @@ export default function EnhancedTable() {
           </Table>
         </TableContainer>
         <TablePagination
-          rowsPerPageOptions={[10, 25, 100]}
+          rowsPerPageOptions={[10, 25, 50]}
           component="div"
-          count={rows.length}
+          count={items.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onChangePage={handleChangePage}
